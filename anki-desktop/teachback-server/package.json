@@ -1,0 +1,13 @@
+{
+    "name": "teachback-server",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Zero-dependency LLM proxy for the Anki Teach-Back learning mode",
+    "type": "module",
+    "scripts": {
+        "start": "node server.mjs"
+    },
+    "engines": {
+        "node": ">=18"
+    }
+}
