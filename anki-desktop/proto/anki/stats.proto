@@ -16,6 +16,9 @@ service StatsService {
   rpc Graphs(GraphsRequest) returns (GraphsResponse);
   rpc GetGraphPreferences(generic.Empty) returns (GraphPreferences);
   rpc SetGraphPreferences(GraphPreferences) returns (generic.Empty);
+  // Per-topic mastery summary (mastered count + average predicted recall),
+  // grouped by note tag. Powers the exam-readiness dashboard.
+  rpc TopicMastery(TopicMasteryRequest) returns (TopicMasteryResponse);
 }
 
 // Implicitly includes any of the above methods that are not listed in the
@@ -24,6 +27,28 @@ service BackendStatsService {}
 
 message ReviewLogs {
   repeated CardStatsResponse.StatsRevlogEntry entries = 1;
+}
+
+message TopicMasteryRequest {
+  // A card counts as "mastered" when its predicted recall (FSRS
+  // retrievability) is >= this threshold. If <= 0, defaults to 0.9.
+  float mastery_threshold = 1;
+  // Only tags starting with this prefix are treated as topics (the prefix is
+  // stripped from the reported name). Empty means every tag is a topic.
+  string topic_prefix = 2;
+}
+
+message TopicMasteryResponse {
+  message Topic {
+    string topic = 1;
+    uint32 total = 2;
+    uint32 mastered = 3;
+    // Mean predicted recall (0-1) across the topic's cards.
+    float average_recall = 4;
+  }
+  repeated Topic topics = 1;
+  uint32 mastered_total = 2;
+  uint32 card_total = 3;
 }
 
 message CardStatsResponse {

@@ -1025,6 +1025,20 @@ class Collection(DeprecatedNamesMixin):
     ) -> Sequence[stats_pb2.CardStatsResponse.StatsRevlogEntry]:
         return self._backend.get_review_logs(card_id)
 
+    def topic_mastery(
+        self, mastery_threshold: float = 0.9, topic_prefix: str = ""
+    ) -> stats_pb2.TopicMasteryResponse:
+        """Per-topic mastery summary (mastered count + average predicted recall).
+
+        Cards are grouped by note tag. A card is "mastered" when its predicted
+        FSRS recall is >= mastery_threshold. Only tags starting with
+        topic_prefix are treated as topics (the prefix is stripped); an empty
+        prefix treats every tag as a topic. Powers the readiness dashboard.
+        """
+        return self._backend.topic_mastery(
+            mastery_threshold=mastery_threshold, topic_prefix=topic_prefix
+        )
+
     def studied_today(self) -> str:
         return self._backend.studied_today()
 

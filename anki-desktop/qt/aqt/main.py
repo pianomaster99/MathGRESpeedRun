@@ -1311,6 +1311,12 @@ title="{}" {}>{}</button>""".format(
         else:
             aqt.dialogs.open("NewDeckStats", self)
 
+    def on_teachback(self) -> None:
+        from aqt.teachback import TeachBackDialog
+
+        # Keep a reference so the window isn't garbage-collected immediately.
+        self._teachback_dialog = TeachBackDialog(self)
+
     def onPrefs(self) -> None:
         aqt.dialogs.open("Preferences", self)
 
@@ -1447,6 +1453,11 @@ title="{}" {}>{}</button>""".format(
         qconnect(m.actionNoteTypes.triggered, self.onNoteTypes)
         qconnect(m.action_check_for_updates.triggered, self.on_check_for_updates)
         qconnect(m.actionPreferences.triggered, self.onPrefs)
+
+        # Teach-Back (Math GRE) learning mode
+        teachback_action = QAction("Teach-Back (Math GRE)", self)
+        qconnect(teachback_action.triggered, self.on_teachback)
+        m.menuTools.addAction(teachback_action)
 
         # View
         qconnect(

@@ -94,28 +94,20 @@ the formula and haven't drawn), and/or **reinforce a crucial correct step**
 (e.g. "oh so this only works for right triangles?"). The post-lesson report has
 **no numeric ratings** — it just identifies what was missing or wrong.
 
-## Optional: launch it from the Anki desktop menu
+## Launching it from Anki (built in)
 
-The route works today at `/_anki/pages/teach`. To add a **Tools → Teach-Back**
-entry, add a launcher in `qt/aqt` (opens a webview at the page), e.g.:
+There is a **Tools → "Teach-Back (Math GRE)"** menu entry in the desktop app. It
+opens `qt/aqt/teachback.py`'s `TeachBackDialog`, which hosts the `/teach`
+SvelteKit page in a webview. Wiring:
 
-```python
-from aqt import gui_hooks, mw
-from aqt.webview import AnkiWebView
+- `qt/aqt/teachback.py` — the launcher window (`web.load_sveltekit_page("teach")`).
+- `qt/aqt/main.py` — adds the Tools menu action (`on_teachback`).
+- `qt/aqt/mediasrv.py` — registers `"teach"` in `is_sveltekit_page` so the media
+  server serves the route at `/_anki/pages/teach`.
 
-def _open_teachback() -> None:
-    dlg = QDialog(mw)
-    web = AnkiWebView(dlg)
-    web.load_sveltekit_page("teach")
-    # ...layout + show...
-
-def _add_menu(_mw) -> None:
-    act = QAction("Teach-Back (Math GRE)", mw)
-    act.triggered.connect(_open_teachback)
-    mw.form.menuTools.addAction(act)
-
-gui_hooks.main_window_did_init.append(_add_menu)
-```
+To try it: run `just run` (builds the web + launches Anki), start the LLM proxy
+with `just teachback-server`, then click **Tools → Teach-Back (Math GRE)**. In
+web HMR mode the webview loads the route from the Vite dev server automatically.
 
 ## Path to mobile / AnkiDroid
 

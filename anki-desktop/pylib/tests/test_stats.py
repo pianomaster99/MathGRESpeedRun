@@ -24,6 +24,24 @@ def test_stats():
     assert len(card_stats.revlog) == 2
 
 
+def test_topic_mastery():
+    # Exercises the new Rust backend RPC (StatsService.TopicMastery) end to end.
+    col = getEmptyCol()
+    note = col.newNote()
+    note["Front"] = "foo"
+    note.tags.append("topic::calculus")
+    col.addNote(note)
+
+    res = col.topic_mastery(0.9, "topic::")
+    assert res.card_total == 1
+    # A brand-new card has no FSRS memory state -> recall 0 -> not mastered.
+    assert res.mastered_total == 0
+    assert len(res.topics) == 1
+    assert res.topics[0].topic == "calculus"
+    assert res.topics[0].total == 1
+    assert res.topics[0].mastered == 0
+
+
 def test_graphs_empty():
     col = getEmptyCol()
     assert col.stats().report()
