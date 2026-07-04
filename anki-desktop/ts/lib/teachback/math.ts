@@ -2,43 +2,27 @@
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 /**
- * Lightweight LaTeX rendering for the Teach-Back UI.
+ * LaTeX rendering for the Teach-Back UI.
  *
- * Anki's built-in MathJax pipeline is served by the Rust backend, which isn't
- * always running for this standalone feature. To keep the classroom
- * self-contained we lazily load KaTeX from a CDN and expose a tiny reactive
- * "ready" flag so components can re-render once it is available. If KaTeX cannot
- * be loaded, callers fall back to showing the raw LaTeX source.
+ * KaTeX (and its fonts/CSS) is bundled with the app rather than loaded from a
+ * CDN, so math renders correctly inside Anki's webview — where an external CDN
+ * is blocked by the content-security-policy — and fully offline. Callers fall
+ * back to showing the raw LaTeX source only if a specific expression fails.
  */
 
+import katex from "katex";
 import { writable } from "svelte/store";
 
-export const katexReady = writable(false);
+// Bundling KaTeX's stylesheet pulls in its @font-face fonts through Vite, so
+// the glyphs are served from the app itself (no network needed).
+import "katex/dist/katex.min.css";
 
-let started = false;
+// KaTeX is always available (bundled), so this is immediately "ready". Kept as a
+// store so existing components can depend on it without changes.
+export const katexReady = writable(true);
 
-/** Inject the KaTeX stylesheet + script once, on first use. */
-export function ensureKatex(): void {
-    if (started || typeof document === "undefined") {
-        return;
-    }
-    started = true;
-    if ((window as any).katex) {
-        katexReady.set(true);
-        return;
-    }
-    const css = document.createElement("link");
-    css.rel = "stylesheet";
-    css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css";
-    document.head.appendChild(css);
-
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js";
-    script.defer = true;
-    script.onload = () => katexReady.set(true);
-    script.onerror = () => console.warn("[teachback] KaTeX failed to load; showing raw LaTeX");
-    document.head.appendChild(script);
-}
+/** No-op: KaTeX is bundled and ready. Kept for API compatibility. */
+export function ensureKatex(): void {}
 
 function escapeHtml(s: string): string {
     return s
@@ -47,19 +31,15 @@ function escapeHtml(s: string): string {
         .replace(/>/g, "&gt;");
 }
 
-/** Render a LaTeX string to HTML, falling back to escaped source. */
+/** Render a LaTeX string to HTML, falling back to escaped source on error. */
 export function renderMathToString(tex: string, displayMode = false): string {
-    const katex = (window as any)?.katex;
-    if (katex) {
-        try {
-            return katex.renderToString(tex, {
-                displayMode,
-                throwOnError: false,
-                output: "html",
-            });
-        } catch {
-            // fall through to raw
-        }
+    try {
+        return katex.renderToString(tex, {
+            displayMode,
+            throwOnError: false,
+            output: "html",
+        });
+    } catch {
+        return `<code class="raw-tex">${escapeHtml(tex)}</code>`;
     }
-    return `<code class="raw-tex">${escapeHtml(tex)}</code>`;
 }
