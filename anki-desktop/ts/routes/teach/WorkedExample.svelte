@@ -5,7 +5,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 <script lang="ts">
     import type { Session } from "$lib/teachback/state";
     import type { Lesson } from "$lib/teachback/types";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
 
     import Math from "./Math.svelte";
 
@@ -17,15 +17,19 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     }: {
         lesson: Lesson;
         session: Session;
-        mode?: "full" | "modal" | "drawer";
+        mode?: "full" | "drawer";
         onClose?: () => void;
     } = $props();
 
-    const track = mode !== "full";
+    // mode/lesson are fixed for this component's lifetime, so reading them once is
+    // intentional (untrack silences the "referenced locally" reactivity hint).
+    const track = untrack(() => mode !== "full");
 
-    // Which steps are expanded. In modal mode we start collapsed so we can learn
+    // Which steps are expanded. In drawer mode we start collapsed so we can learn
     // which parts the user actually opens; in full study mode everything is open.
-    let expanded = $state<boolean[]>(lesson.workedExample.steps.map(() => !track));
+    let expanded = $state<boolean[]>(
+        untrack(() => lesson.workedExample.steps.map(() => !track)),
+    );
 
     onMount(() => {
         if (track) {
@@ -42,7 +46,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     }
 </script>
 
-<div class="worked-example" class:is-modal={mode === "modal"} class:is-drawer={mode === "drawer"}>
+<div class="worked-example" class:is-drawer={mode === "drawer"}>
     <div class="header">
         <h2>Worked Example</h2>
         {#if mode !== "full"}
@@ -89,13 +93,6 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         border-radius: 12px;
         padding: 1.25rem 1.5rem;
         max-width: 720px;
-
-        &.is-modal {
-            width: min(720px, 92vw);
-            max-height: 88vh;
-            overflow-y: auto;
-            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
-        }
 
         &.is-drawer {
             width: 100%;

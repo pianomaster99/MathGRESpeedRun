@@ -74,6 +74,12 @@ prefix (default `topic::`), stripped to the bare name; untagged cards group unde
 | `rslib/src/stats/service.rs` | +1 trait method delegating to the impl | low |
 | `pylib/anki/collection.py` | +`topic_mastery()` wrapper | low |
 | `pylib/tests/test_stats.py` | +`test_topic_mastery` | none |
+| `pylib/anki/gre_readiness.py` | **new** honest memory-readiness module | none |
+| `pylib/tests/test_gre_readiness.py` | **new** readiness/give-up-rule tests | none |
+| `qt/aqt/gre_readiness.py` | **new** GRE Math Readiness dashboard | none |
+| `qt/aqt/teachback.py` | **new** Teach-Back launcher window | none |
+| `qt/aqt/main.py` | +2 Tools-menu actions | low |
+| `qt/aqt/mediasrv.py` | register the `teach` svelte page | low |
 
 Everything is additive; a future upstream merge is easy. Undo/collection
 integrity are unaffected — the RPC is read-only (no writes to the collection).
@@ -89,9 +95,10 @@ integrity are unaffected — the RPC is read-only (no writes to the collection).
 
 ---
 
-## Honest memory readiness (`anki-desktop/mathgre/readiness.py`)
+## Honest memory readiness (`anki-desktop/pylib/anki/gre_readiness.py`)
 
-Consumes the mastery RPC and reports a **memory** signal only:
+Lives in the `anki` package (importable app-wide) and consumes the mastery RPC
+to report a **memory** signal only:
 
 - point estimate = exam-weight-weighted mean recall (uncovered high-weight
   sections drag it down — you can't skip Calculus and look "ready"),
@@ -102,7 +109,55 @@ Consumes the mastery RPC and reports a **memory** signal only:
 **Give-up rule (explicit):** *no score until ≥ 200 graded reviews AND ≥ 50%
 topic coverage.* Below that it abstains and says exactly what's missing.
 
-Test: `anki-desktop/mathgre/test_readiness.py`.
+**See it in the app:** **Tools → "GRE Math Readiness"** opens a dashboard
+(`qt/aqt/gre_readiness.py`) showing the score + range, coverage, the give-up
+message, and a per-topic table — a thin view over the shared engine.
+
+Test: `pylib/tests/test_gre_readiness.py` (runs in the `just test-py` suite).
+
+---
+
+## AI card verification (`anki-desktop/mathgre/eval/`)
+
+Every AI-touched card is checked before it can enter the deck. The checker is
+graded on a held-out set and must beat a simpler method; the scoring path itself
+uses no AI.
+
+- **Named sources** — `sources.md`: ETS practice books (GR0568/GR1268/GR1768) +
+  open textbooks (OpenStax, Judson, Lebl, Trench, Austin, Rosen). Every AI verdict
+  cites a mathematical basis; every gold item cites a source.
+- **Gold set** — `gold_set.json`: 50 Q/A with known-correct answers (the key).
+- **Held-out labeled set** — `eval_labeled.json`: 30 cards (12 correct, 12
+  deliberately wrong, 6 low-quality) with ground-truth labels.
+- **Checker** — `card_checker.py`: `gpt-4o-mini` judges each card into
+  `wrong` / `low_quality` / `correct_useful`, re-deriving the answer itself.
+  Non-passing verdicts **escalate to `gpt-4o`** (deterministic) to kill false
+  positives. **Cutoff (fixed before results): pass only if `correct_useful`.**
+- **Baseline to beat** — `baseline.py`: keyword / nearest-question matching.
+- **Harness** — `run_eval.py`: leakage check, held-out accuracy + wrong-answer
+  catch rate vs. baseline, then runs the whole 156-card deck and reports the
+  three counts, writing `decks/verified_deck.tsv` (kept) and `blocked_cards.tsv`
+  (quarantined for human review).
+
+Run it (needs `OPENAI_API_KEY` in `.env`):
+
+```bash
+cd anki-desktop && ./out/pyenv/bin/python mathgre/eval/run_eval.py
+```
+
+**Results (`mathgre/eval/RESULTS.md`):**
+
+| Method | Accuracy | Wrong-answer catch | False "wrong" on good cards |
+|--------|---------:|-------------------:|----------------------------:|
+| AI checker | **90%** | **100%** | **0%** |
+| Baseline (keyword) | 23% | 8% | 17% |
+
+Full deck: **155 correct/useful (kept), 1 wrong (blocked), 0 low-quality.**
+
+**Honesty note:** the 1 blocked card (`lim_{x→0}(1−cos x)/x = 0`) is actually
+*correct* — both models reproducibly mis-evaluate this limit. That false positive
+is documented in `RESULTS.md`; it's why blocked cards are quarantined for a human
+rather than deleted, and why we report a held-out false-positive rate.
 
 ---
 
@@ -118,28 +173,64 @@ Desktop:
 
 ```bash
 cd anki-desktop
-just run                     # build + launch Anki
+just run                     # build + launch Anki (Tools → GRE Math Readiness / Teach-Back)
 just test-rust               # runs the 3 mastery unit tests (+ the rest)
-just test-py                 # runs test_topic_mastery (the new RPC) + pylib suite
+just test-py                 # runs test_topic_mastery + test_gre_readiness + pylib suite
 
-# The readiness test lives outside pylib/tests, so run it against the BUILT
-# package (out/pylib), not the editable source tree:
-PYTHONPATH="$PWD/out/pylib:$PWD" ./out/pyenv/bin/python -m pytest mathgre/test_readiness.py
+# If ninja reports "no work to do" (it caches the pytest task and may not pick up
+# a newly added test file), run the tests directly against the BUILT package:
+PYTHONPATH="$PWD/pylib:$PWD/out/pylib" ./out/pyenv/bin/python -m pytest \
+  pylib/tests/test_stats.py pylib/tests/test_gre_readiness.py -q
 ```
 
-Note: don't run `./out/pyenv/bin/pytest pylib/...` directly — the editable
-`anki` points at the source tree, which is missing build-generated modules
-(`anki.buildinfo`, `*_pb2`). `just test-py` and the `PYTHONPATH=out/pylib`
-invocation above use the built package.
+Note: don't run `./out/pyenv/bin/pytest pylib/...` without the `PYTHONPATH`
+above — the editable `anki` points at the source tree, which is missing
+build-generated modules (`anki.buildinfo`, `*_pb2`).
 
-Tag your exam deck's notes with `topic::calculus`, `topic::linear-algebra`, etc.
-(see `mathgre/readiness.py` for the topic list) so mastery/coverage populate.
+A ready-made **deck** of 156 topic-tagged GRE Math cards is **bundled in the app**
+and auto-imported the first time each collection opens (embedded in
+`qt/aqt/mathgre_deck.py`, seeded by `ensure_gre_math_deck` in
+`MainWindow.loadCollection`), so every user starts with the **GRE Math** deck and
+the mastery/coverage dashboards populate immediately. Seeding happens once per
+collection and isn't re-added if the user deletes the deck. The source TSV lives
+at `anki-desktop/mathgre/decks/mathgre_sample.tsv` (also importable by hand via
+File → Import). To tag your own notes, use `topic::calculus`,
+`topic::linear-algebra`, etc. (topic list in `pylib/anki/gre_readiness.py`).
 
 Mobile (AnkiDroid): `cd AnkiDroid && ./gradlew assembleDebug` then install on a
 device/emulator; it shares the same Rust engine, so the mastery RPC is available
 there too.
 
 ---
+
+## Hand-off: installer, mobile, and recordings (run on your machine)
+
+These need a GUI / Android toolchain / screen capture, so they're done locally,
+not in code review.
+
+**Desktop installer** (Briefcase-based, per platform):
+```bash
+cd anki-desktop
+just build            # ensure a full build first
+# packaging recipes live under `release.just` / qt/installer/ — e.g.:
+just --list | grep -i installer
+```
+Then run the produced installer on a clean machine and record it.
+
+**Mobile (AnkiDroid)** — shares this Rust engine, so the `TopicMastery` RPC is
+available on device once built:
+```bash
+cd AnkiDroid
+./gradlew assembleDebug          # or open in Android Studio and Run on an emulator
+adb install AnkiDroid/build/outputs/apk/debug/AnkiDroid-debug.apk
+```
+Load your exam deck and run a review session (Wednesday: reviewing the shared
+deck; two-way sync is Friday). To surface readiness on the phone, add a menu
+entry that calls the backend `topicMastery` RPC (same proto, regenerated for
+Kotlin) and reuse the weighting/give-up logic from `gre_readiness.py`.
+
+**Recordings to capture** (Wednesday proof): a clean build, the 3 Rust + Python
+tests passing, a clean-machine install, and a phone review session.
 
 ## Notes / honesty log
 

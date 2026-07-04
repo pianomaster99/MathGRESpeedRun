@@ -662,6 +662,11 @@ class AnkiQt(QMainWindow):
             self.update_undo_actions()
             gui_hooks.collection_did_load(self.col)
             self.apply_collection_options()
+            # Every profile in this build studies GRE math, so seed the bundled
+            # deck once per collection (no-ops after the first load).
+            from aqt.mathgre_deck import ensure_gre_math_deck
+
+            ensure_gre_math_deck(self)
             self.moveToState("deckBrowser")
         except Exception:
             # dump error to stderr so it gets picked up by errors.py
@@ -1317,6 +1322,16 @@ title="{}" {}>{}</button>""".format(
         # Keep a reference so the window isn't garbage-collected immediately.
         self._teachback_dialog = TeachBackDialog(self)
 
+    def on_gre_readiness(self) -> None:
+        from aqt.gre_readiness import GreReadinessDialog
+
+        self._gre_readiness_dialog = GreReadinessDialog(self)
+
+    def on_topic_mastery(self) -> None:
+        from aqt.topic_mastery import TopicMasteryDialog
+
+        self._topic_mastery_dialog = TopicMasteryDialog(self)
+
     def onPrefs(self) -> None:
         aqt.dialogs.open("Preferences", self)
 
@@ -1458,6 +1473,16 @@ title="{}" {}>{}</button>""".format(
         teachback_action = QAction("Teach-Back (Math GRE)", self)
         qconnect(teachback_action.triggered, self.on_teachback)
         m.menuTools.addAction(teachback_action)
+
+        # GRE Math readiness dashboard (memory score + coverage + give-up rule)
+        gre_readiness_action = QAction("GRE Math Readiness", self)
+        qconnect(gre_readiness_action.triggered, self.on_gre_readiness)
+        m.menuTools.addAction(gre_readiness_action)
+
+        # Per-topic mastery summary (direct view over the TopicMastery RPC)
+        topic_mastery_action = QAction("Topic Mastery", self)
+        qconnect(topic_mastery_action.triggered, self.on_topic_mastery)
+        m.menuTools.addAction(topic_mastery_action)
 
         # View
         qconnect(

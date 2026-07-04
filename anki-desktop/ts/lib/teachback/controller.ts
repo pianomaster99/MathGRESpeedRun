@@ -12,6 +12,7 @@
  * crucial correct step. We add whatever it returns to the conversation.
  */
 
+import { recordLesson } from "./ankiBridge";
 import { generateFeedback, runAgent } from "./llm";
 import { summarizeForLLM } from "./state";
 import type { Session } from "./state";
@@ -71,6 +72,22 @@ export function createController(session: Session) {
         session.setGeneratingFeedback(true);
         const feedback = await generateFeedback(summarizeForLLM(s));
         session.finishLesson(feedback);
+
+        // Fold the lesson result into topic mastery (in-app only; no-ops in dev).
+        const lesson = s.lesson;
+        try {
+            const stats = await recordLesson({
+                lessonId: lesson.id,
+                slug: lesson.masterySlug ?? null,
+                topic: lesson.topic,
+                gaps: feedback.knowledgeGaps?.length ?? 0,
+                strengths: feedback.strengths?.length ?? 0,
+                verified: feedback.source === "openai",
+            });
+            session.setLessonStats(stats);
+        } catch {
+            session.setLessonStats(null);
+        }
     }
 
     return { reactToBoard, finish };

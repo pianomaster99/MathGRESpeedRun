@@ -9,39 +9,20 @@ choosing the desktop vs mobile layout, and the debounced background LLM loop)
 while delegating all rendering to the shared shared-logic-driven children.
 -->
 <script lang="ts">
-    import { createController } from "$lib/teachback/controller";
-    import { getLesson } from "$lib/teachback/lessons";
+    import { lessons } from "$lib/teachback/lessons";
     import { checkHealth } from "$lib/teachback/llm";
-    import { createSession } from "$lib/teachback/state";
-    import type { LessonSession } from "$lib/teachback/types";
     import { onMount } from "svelte";
 
-    import Classroom from "./Classroom.svelte";
-    import Feedback from "./Feedback.svelte";
-    import MobileClassroom from "./MobileClassroom.svelte";
-    import StudyIntro from "./StudyIntro.svelte";
+    import LessonRunner from "./LessonRunner.svelte";
+    import TopicHome from "./TopicHome.svelte";
 
-    const lesson = getLesson();
-    const session = createSession(lesson);
-    const controller = createController(session);
+    // Which lesson (if any) the user has picked. null => show the topic picker.
+    let selectedId = $state<string | null>(null);
 
-    const s = $derived($session as LessonSession);
-
-    // --- responsive layout ------------------------------------------------
-    let isMobile = $state(false);
     onMount(() => {
         // Learn whether the AI evaluator is reachable so we can show its status.
         checkHealth();
-        const mq = window.matchMedia("(max-width: 820px)");
-        const update = () => (isMobile = mq.matches);
-        update();
-        mq.addEventListener("change", update);
-        return () => mq.removeEventListener("change", update);
     });
-
-    // The classroom is driven by one event (no background polling): when the user
-    // posts to the board (Enter), Board calls controller.reactToBoard(), which runs
-    // the mini agent once on the whole board and adds any student utterances.
 </script>
 
 <svelte:head>
@@ -54,16 +35,12 @@ while delegating all rendering to the shared shared-logic-driven children.
 </svelte:head>
 
 <div class="teachback">
-    {#if s.phase === "study"}
-        <StudyIntro {session} onStart={() => session.startTeaching()} />
-    {:else if s.phase === "teach"}
-        {#if isMobile}
-            <MobileClassroom {session} {controller} />
-        {:else}
-            <Classroom {session} {controller} />
-        {/if}
+    {#if selectedId === null}
+        <TopicHome {lessons} onSelect={(id) => (selectedId = id)} />
     {:else}
-        <Feedback {session} onRestart={() => session.reset()} />
+        {#key selectedId}
+            <LessonRunner lessonId={selectedId} onExit={() => (selectedId = null)} />
+        {/key}
     {/if}
 </div>
 

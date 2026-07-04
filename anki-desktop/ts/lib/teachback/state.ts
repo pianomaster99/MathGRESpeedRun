@@ -12,7 +12,7 @@
 
 import { get, writable } from "svelte/store";
 
-import type { ChatMessage, Lesson, LessonSession, TextBox } from "./types";
+import type { ChatMessage, Lesson, LessonSession, LessonStats, TextBox } from "./types";
 
 function newId(): string {
     return Math.random().toString(36).slice(2, 10);
@@ -29,6 +29,7 @@ function initialSession(lesson: Lesson): LessonSession {
         startedAt: Date.now(),
         feedback: null,
         generatingFeedback: false,
+        lessonStats: null,
     };
 }
 
@@ -178,6 +179,13 @@ export function createSession(lesson: Lesson) {
             });
         },
 
+        /** Store the topic-mastery stats recorded after finishing (in-app). */
+        setLessonStats(stats: LessonStats | null) {
+            update((s) => {
+                s.lessonStats = stats;
+            });
+        },
+
         reset() {
             store.set(initialSession(lesson));
         },
@@ -202,6 +210,7 @@ export function summarizeForLLM(session: LessonSession) {
         .join("\n");
     const nameOf = (id?: string) => lesson.students.find((st) => st.id === id)?.name ?? "Student";
     return {
+        lessonId: lesson.id,
         topic: lesson.topic,
         problem: lesson.teachback.prompt,
         expectedAnswer: lesson.teachback.answer,
@@ -209,6 +218,9 @@ export function summarizeForLLM(session: LessonSession) {
         keyConcepts: lesson.keyConcepts,
         commonMisconceptions: lesson.commonMisconceptions,
         exampleQuestions: lesson.exampleQuestions,
+        suggestedReview: lesson.suggestedReview,
+        // Optional per-lesson "draw a diagram" nudge (null for most topics).
+        visual: lesson.visual ?? null,
         students: lesson.students.map((s) => ({ id: s.id, name: s.name, voice: s.voice })),
         boardText,
         hasDrawing: board.hasDrawing,

@@ -1,0 +1,2 @@
+front	back	tag	verdict	reason
+Evaluate lim_{x→0} (1 − cos x)/x.	0	topic::calculus	wrong	The limit of (1 − cos x)/x as x approaches 0 is not 0. Using L'Hôpital's Rule, which applies to indeterminate forms like 0/0, we differentiate the numerator and the denominator. The derivative of 1 − cos x is sin x, and the derivative of x is 1. Thus, the limit becomes lim_{x→0} sin x/1 = sin(0)/1 = 0. However, this is incorrect because the correct application of L'Hôpital's Rule should be on (1 − cos x)/x², which gives 1/2.

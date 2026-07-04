@@ -1,0 +1,160 @@
+#separator:tab
+#html:false
+#notetype:Basic
+#deck:GRE Math
+#tags column:3
+State the precise (ε–δ) definition of lim_{x→a} f(x) = L.	For every ε > 0 there exists δ > 0 such that if 0 < |x − a| < δ then |f(x) − L| < ε.	topic::calculus
+When is f continuous at x = a?	f is continuous at a if f(a) is defined, lim_{x→a} f(x) exists, and lim_{x→a} f(x) = f(a).	topic::calculus
+Evaluate lim_{x→0} (sin x)/x.	1	topic::calculus
+State the limit definition of the derivative f'(x).	f'(x) = lim_{h→0} [f(x+h) − f(x)]/h.	topic::calculus
+Product rule: d/dx[f(x)g(x)] = ?	f'(x)g(x) + f(x)g'(x)	topic::calculus
+Quotient rule: d/dx[f(x)/g(x)] = ?	[f'(x)g(x) − f(x)g'(x)] / g(x)^2	topic::calculus
+Chain rule: d/dx[f(g(x))] = ?	f'(g(x)) · g'(x)	topic::calculus
+d/dx[tan x] = ?	sec^2 x	topic::calculus
+d/dx[ln x] = ?	1/x	topic::calculus
+d/dx[e^x] = ?	e^x	topic::calculus
+d/dx[arctan x] = ?	1/(1 + x^2)	topic::calculus
+d/dx[arcsin x] = ?	1/√(1 − x^2)	topic::calculus
+State the Fundamental Theorem of Calculus (Part 1).	If f is continuous on [a,b] and F(x) = ∫_a^x f(t) dt, then F'(x) = f(x).	topic::calculus
+State the Fundamental Theorem of Calculus (Part 2, evaluation).	If f is continuous on [a,b] and F is any antiderivative of f, then ∫_a^b f(x) dx = F(b) − F(a).	topic::calculus
+Integration by parts formula: ∫ u dv = ?	uv − ∫ v du	topic::calculus
+∫ 1/x dx = ?	ln|x| + C	topic::calculus
+∫ sec^2 x dx = ?	tan x + C	topic::calculus
+∫ 1/(1 + x^2) dx = ?	arctan x + C	topic::calculus
+∫ e^x dx = ?	e^x + C	topic::calculus
+Evaluate ∫ x e^x dx.	x e^x − e^x + C	topic::calculus
+Sum of a convergent geometric series Σ_{n=0}^∞ a r^n (|r| < 1) = ?	a/(1 − r)	topic::calculus
+For which p does the p-series Σ_{n=1}^∞ 1/n^p converge?	It converges if and only if p > 1.	topic::calculus
+State the Ratio Test conclusion using L = lim_{n→∞} |a_{n+1}/a_n|.	If L < 1 the series converges absolutely; if L > 1 (or ∞) it diverges; if L = 1 the test is inconclusive.	topic::calculus
+State the Alternating Series Test.	Σ (−1)^n b_n converges if b_n > 0, b_n is decreasing, and lim_{n→∞} b_n = 0.	topic::calculus
+Maclaurin series of e^x = ?	Σ_{n=0}^∞ x^n/n! = 1 + x + x^2/2! + x^3/3! + ...	topic::calculus
+Maclaurin series of sin x = ?	Σ_{n=0}^∞ (−1)^n x^(2n+1)/(2n+1)! = x − x^3/3! + x^5/5! − ...	topic::calculus
+Maclaurin series of cos x = ?	Σ_{n=0}^∞ (−1)^n x^(2n)/(2n)! = 1 − x^2/2! + x^4/4! − ...	topic::calculus
+Power series of 1/(1 − x) for |x| < 1 = ?	Σ_{n=0}^∞ x^n = 1 + x + x^2 + x^3 + ...	topic::calculus
+Define the gradient ∇f of a scalar function f(x,y,z).	∇f = (∂f/∂x, ∂f/∂y, ∂f/∂z), the vector of first partial derivatives.	topic::calculus
+For z = f(x,y) with x = x(t), y = y(t), the chain rule gives dz/dt = ?	dz/dt = (∂f/∂x)(dx/dt) + (∂f/∂y)(dy/dt)	topic::calculus
+Give the area element dA for a double integral in polar coordinates.	dA = r dr dθ	topic::calculus
+State the Jacobian volume element for spherical coordinates (ρ, φ, θ).	dV = ρ^2 sin φ dρ dφ dθ	topic::calculus
+State Green's Theorem.	∮_C (P dx + Q dy) = ∬_D (∂Q/∂x − ∂P/∂y) dA, where C is the positively oriented boundary of region D.	topic::calculus
+State the Divergence Theorem.	∬_S F · dS = ∭_V (∇ · F) dV, where S is the closed boundary surface of solid region V.	topic::calculus
+State Stokes' Theorem.	∮_C F · dr = ∬_S (∇ × F) · dS, where C is the boundary of surface S with compatible orientation.	topic::calculus
+Give the arc length of y = f(x) from x = a to x = b.	L = ∫_a^b √(1 + (f'(x))^2) dx	topic::calculus
+Volume of revolution about the x-axis (disk method) for y = f(x), a ≤ x ≤ b = ?	V = π ∫_a^b (f(x))^2 dx	topic::calculus
+Solve the separable ODE dy/dx = k y.	y = C e^(k x)	topic::calculus
+Give the integrating factor for the linear ODE y' + P(x) y = Q(x).	μ(x) = e^(∫ P(x) dx)	topic::calculus
+For a 2x2 matrix A = [[a, b], [c, d]], what is det(A)?	det(A) = ad − bc	topic::linear-algebra
+How do you expand det of a 3x3 matrix [[a,b,c],[d,e,f],[g,h,i]] along the first row?	det = a(ei − fh) − b(di − fg) + c(dh − eg)	topic::linear-algebra
+When is a square matrix A invertible? Give several equivalent conditions.	A is invertible ⇔ det(A) ≠ 0 ⇔ rank = n (full rank) ⇔ columns are linearly independent ⇔ 0 is not an eigenvalue ⇔ Ax = 0 has only the trivial solution	topic::linear-algebra
+State the rank-nullity theorem for a linear map T: V → W with V finite-dimensional.	dim(V) = rank(T) + nullity(T), i.e. dim(V) = dim(im T) + dim(ker T)	topic::linear-algebra
+What is a basis of a vector space, and what is the dimension?	A basis is a linearly independent set that spans the space; the dimension is the number of vectors in any basis (all bases have the same size)	topic::linear-algebra
+Define an eigenvalue and eigenvector of a matrix A.	A nonzero vector v with Av = λv for a scalar λ; λ is the eigenvalue and v is an eigenvector	topic::linear-algebra
+How is the characteristic polynomial of an n×n matrix A defined?	p(λ) = det(A − λI); its roots are the eigenvalues of A	topic::linear-algebra
+When is an n×n matrix diagonalizable (over a field)?	A is diagonalizable ⇔ it has n linearly independent eigenvectors ⇔ for every eigenvalue its geometric multiplicity equals its algebraic multiplicity	topic::linear-algebra
+Relate trace and determinant of A to its eigenvalues (with multiplicity).	trace(A) = sum of eigenvalues; det(A) = product of eigenvalues	topic::linear-algebra
+Is matrix multiplication commutative? State the rule for when AB is defined.	No, in general AB ≠ BA; AB is defined when A is m×n and B is n×p, giving an m×p matrix	topic::linear-algebra
+How do elementary row operations affect a determinant?	Swapping two rows multiplies det by −1; scaling a row by k multiplies det by k; adding a multiple of one row to another leaves det unchanged	topic::linear-algebra
+When are two vectors u and v orthogonal?	When their dot product is zero: u · v = 0	topic::linear-algebra
+Give the cross product formula for a = (a1,a2,a3) and b = (b1,b2,b3) in R^3.	a × b = (a2 b3 − a3 b2, a3 b1 − a1 b3, a1 b2 − a2 b1); it is orthogonal to both a and b	topic::linear-algebra
+Give the dot product formula and its geometric meaning.	u · v = u1 v1 + u2 v2 + ... + un vn = |u| |v| cos θ, where θ is the angle between u and v	topic::linear-algebra
+What is the idea behind the Gram-Schmidt process?	It converts a linearly independent set into an orthogonal (or orthonormal) basis by subtracting from each vector its projections onto the previously constructed vectors	topic::linear-algebra
+For Ax = b, how do rank(A) and rank([A|b]) determine solvability?	Consistent ⇔ rank(A) = rank([A|b]); then unique solution if rank = number of unknowns, infinitely many if rank < number of unknowns	topic::linear-algebra
+What three properties must a set G with operation · satisfy to be a group?	Associativity, existence of an identity element e, and existence of an inverse for every element (closure under · is also assumed)	topic::abstract-algebra
+Define the order of a group and the order of an element g.	The order of a group is its number of elements |G|; the order of g is the smallest positive integer n with g^n = e (∞ if none exists)	topic::abstract-algebra
+State the subgroup test for a nonempty subset H of a group G.	H ≤ G ⇔ H is nonempty and for all a, b ∈ H, ab^(−1) ∈ H	topic::abstract-algebra
+State Lagrange's theorem.	If G is a finite group and H ≤ G, then |H| divides |G|; in particular the order of any element divides |G|	topic::abstract-algebra
+What is a cyclic group?	A group generated by a single element: G = ⟨g⟩ = {g^k : k ∈ Z}; every cyclic group is abelian	topic::abstract-algebra
+What is a (left) coset of a subgroup H in G?	For g ∈ G, the set gH = {gh : h ∈ H}; the distinct left cosets partition G into pieces of equal size |H|	topic::abstract-algebra
+When is a subgroup N of G normal?	N ⊴ G ⇔ gNg^(−1) = N for all g ∈ G (equivalently gN = Ng for all g)	topic::abstract-algebra
+What is the quotient group G/N, and what condition on N is needed?	When N ⊴ G, G/N is the group of cosets with (aN)(bN) = (ab)N; N must be normal for this to be well-defined	topic::abstract-algebra
+Define a group homomorphism φ: G → H.	A map with φ(ab) = φ(a)φ(b) for all a, b ∈ G; it sends identity to identity and inverses to inverses	topic::abstract-algebra
+What is a group isomorphism?	A bijective homomorphism; if one exists, G and H are isomorphic (G ≅ H) and share all group-theoretic properties	topic::abstract-algebra
+Define the kernel of a homomorphism φ: G → H, and its key properties.	ker(φ) = {g ∈ G : φ(g) = e_H}; it is a normal subgroup of G, and φ is injective ⇔ ker(φ) = {e}	topic::abstract-algebra
+What is the symmetric group S_n and its order?	S_n is the group of all bijections (permutations) of {1,...,n} under composition; |S_n| = n!	topic::abstract-algebra
+What determines the parity (even/odd) of a permutation?	The parity of the number of transpositions in any decomposition; even permutations form the alternating group A_n of order n!/2	topic::abstract-algebra
+What are the defining properties of a ring (with unity)?	(R, +) is an abelian group, multiplication is associative and distributes over addition, and there is a multiplicative identity 1	topic::abstract-algebra
+Define an ideal I of a commutative ring R.	A subgroup (I, +) such that for all r ∈ R and a ∈ I, ra ∈ I (absorbs multiplication by ring elements)	topic::abstract-algebra
+What is an integral domain?	A commutative ring with 1 ≠ 0 that has no zero divisors: ab = 0 ⇒ a = 0 or b = 0	topic::abstract-algebra
+What is a field?	A commutative ring with 1 ≠ 0 in which every nonzero element has a multiplicative inverse	topic::abstract-algebra
+For which n is the ring Z/nZ a field?	Exactly when n is prime; Z/nZ is an integral domain ⇔ n is prime, and then it is also a field	topic::abstract-algebra
+What does a | b (a divides b) mean for integers?	There exists an integer k with b = ak (and a ≠ 0)	topic::number-theory
+State the relationship between gcd and lcm of positive integers a and b.	gcd(a,b) · lcm(a,b) = a · b	topic::number-theory
+How does the Euclidean algorithm compute gcd(a, b)?	Repeatedly replace (a, b) by (b, a mod b) until the remainder is 0; the last nonzero remainder is gcd(a, b)	topic::number-theory
+What does a ≡ b (mod n) mean?	n divides (a − b); equivalently a and b leave the same remainder upon division by n	topic::number-theory
+State Fermat's little theorem.	If p is prime and gcd(a, p) = 1, then a^(p−1) ≡ 1 (mod p); for any a, a^p ≡ a (mod p)	topic::number-theory
+Define Euler's totient function φ(n) and give φ for a prime p and a prime power p^k.	φ(n) counts integers in {1,...,n} coprime to n; φ(p) = p − 1 and φ(p^k) = p^k − p^(k−1)	topic::number-theory
+State Euler's theorem.	If gcd(a, n) = 1, then a^(φ(n)) ≡ 1 (mod n)	topic::number-theory
+State the Chinese Remainder Theorem for two moduli.	If gcd(m, n) = 1, the system x ≡ a (mod m), x ≡ b (mod n) has a unique solution modulo mn	topic::number-theory
+State the Fundamental Theorem of Arithmetic.	Every integer n > 1 factors into primes uniquely up to the order of the factors	topic::number-theory
+Compute 7^100 mod 5.	7 ≡ 2 (mod 5), and 2^4 ≡ 1 (mod 5), so 2^100 = (2^4)^25 ≡ 1; thus 7^100 ≡ 1 (mod 5)	topic::number-theory
+Compute 2^10 mod 11 using Fermat's little theorem.	By Fermat, 2^10 ≡ 1 (mod 11) since 11 is prime and gcd(2,11) = 1	topic::number-theory
+State the ε–δ definition of lim(x→a) f(x) = L.	For every ε > 0 there exists δ > 0 such that for all x, if 0 < |x − a| < δ then |f(x) − L| < ε.	topic::real-analysis
+State the ε–δ definition of continuity of f at a point a.	f is continuous at a if for every ε > 0 there exists δ > 0 such that for all x, |x − a| < δ implies |f(x) − f(a)| < ε.	topic::real-analysis
+What does it mean for a sequence (aₙ) to converge to L?	For every ε > 0 there exists N such that for all n ≥ N, |aₙ − L| < ε.	topic::real-analysis
+Define a Cauchy sequence.	(aₙ) is Cauchy if for every ε > 0 there exists N such that for all m, n ≥ N, |aₘ − aₙ| < ε.	topic::real-analysis
+What is meant by completeness of ℝ, and how does it relate to Cauchy sequences?	ℝ is complete: every Cauchy sequence of real numbers converges to a limit in ℝ. Equivalently, every nonempty set bounded above has a least upper bound.	topic::real-analysis
+State the Bolzano–Weierstrass theorem.	Every bounded sequence in ℝ (or ℝⁿ) has a convergent subsequence.	topic::real-analysis
+Define the supremum (sup) of a nonempty set S ⊆ ℝ that is bounded above.	sup S is the least upper bound of S: it is an upper bound M such that no number smaller than M is an upper bound. That is, M is an upper bound and for every ε > 0 there is s ∈ S with s > M − ε.	topic::real-analysis
+Distinguish pointwise from uniform convergence of fₙ → f on a set E.	Pointwise: for each x ∈ E and each ε > 0 there is N (depending on x) with |fₙ(x) − f(x)| < ε for n ≥ N. Uniform: N can be chosen independent of x, so sup over x of |fₙ(x) − f(x)| → 0.	topic::real-analysis
+State the nth-term test (divergence test) for a series Σ aₙ.	If Σ aₙ converges then aₙ → 0. Contrapositive: if aₙ does not tend to 0, the series diverges. (The converse fails, e.g. Σ 1/n.)	topic::real-analysis
+State the Intermediate Value Theorem.	If f is continuous on [a, b] and y is any value between f(a) and f(b), then there exists c ∈ [a, b] with f(c) = y.	topic::real-analysis
+State the Extreme Value Theorem.	If f is continuous on a closed bounded interval [a, b], then f attains a maximum and a minimum value on [a, b].	topic::real-analysis
+State the Mean Value Theorem.	If f is continuous on [a, b] and differentiable on (a, b), then there exists c ∈ (a, b) with f′(c) = (f(b) − f(a))/(b − a).	topic::real-analysis
+Is differentiability at a point stronger or weaker than continuity there? Give the implication.	If f is differentiable at a, then f is continuous at a. The converse is false (e.g. f(x) = |x| at 0 is continuous but not differentiable).	topic::real-analysis
+State the Monotone Convergence Theorem for sequences.	A monotone (increasing or decreasing) sequence of real numbers converges if and only if it is bounded; an increasing bounded sequence converges to its supremum.	topic::real-analysis
+Give a criterion for Riemann integrability on [a, b] in terms of upper and lower sums.	A bounded f is Riemann integrable on [a, b] iff for every ε > 0 there is a partition P with U(f, P) − L(f, P) < ε (upper and lower Darboux sums differ by less than ε).	topic::real-analysis
+Define an open set in a topological space.	A set U is open if U belongs to the topology; equivalently in a metric space, for every point x ∈ U there is r > 0 with the open ball B(x, r) ⊆ U.	topic::topology
+Define a closed set in a topological space.	A set is closed if its complement is open. Equivalently, it contains all of its limit points.	topic::topology
+Define the interior, closure, and boundary of a set A.	Interior: largest open set contained in A (union of all open subsets). Closure: smallest closed set containing A (intersection of all closed supersets). Boundary: closure(A) ∩ closure(complement of A), i.e. closure minus interior.	topic::topology
+Define a basis for a topology on X.	A collection B of open sets is a basis if every open set is a union of members of B; equivalently, for each x and open U containing x there is B ∈ 𝓑 with x ∈ B ⊆ U.	topic::topology
+Give the topological characterization of continuity of f : X → Y.	f is continuous iff the preimage f⁻¹(V) is open in X for every open set V ⊆ Y (equivalently, preimages of closed sets are closed).	topic::topology
+Define compactness of a topological space.	A space is compact if every open cover has a finite subcover: for any collection of open sets whose union is X, finitely many of them already cover X.	topic::topology
+State the Heine–Borel theorem in ℝⁿ.	A subset of ℝⁿ is compact if and only if it is closed and bounded.	topic::topology
+Define a connected topological space.	X is connected if it cannot be written as the union of two disjoint nonempty open sets; equivalently, the only subsets that are both open and closed are ∅ and X.	topic::topology
+Define a Hausdorff (T₂) space.	A space is Hausdorff if any two distinct points x ≠ y have disjoint open neighborhoods U ∋ x and V ∋ y with U ∩ V = ∅.	topic::topology
+Define a metric space.	A set X with a function d : X × X → [0, ∞) such that d(x, y) = 0 iff x = y, d(x, y) = d(y, x) (symmetry), and d(x, z) ≤ d(x, y) + d(y, z) (triangle inequality).	topic::topology
+Define a homeomorphism between topological spaces.	A bijection f : X → Y such that both f and f⁻¹ are continuous. If one exists, X and Y are homeomorphic (topologically equivalent).	topic::topology
+Is the open interval (0, 1) compact in ℝ? Justify briefly.	No. It is bounded but not closed, so by Heine–Borel it is not compact. E.g. the cover {(1/n, 1) : n ≥ 2} has no finite subcover.	topic::topology
+Define a complex number's modulus |z| and argument arg(z) for z = x + iy.	|z| = √(x² + y²), the distance from 0. arg(z) is the angle θ with x = |z|cos θ, y = |z|sin θ, so z = |z|(cos θ + i sin θ).	topic::complex-analysis
+State Euler's formula.	e^{iθ} = cos θ + i sin θ. In particular e^{iπ} + 1 = 0.	topic::complex-analysis
+What are the nth roots of unity, and what do they look like geometrically?	The solutions of zⁿ = 1: z = e^{2πik/n} for k = 0, 1, …, n − 1. They are n equally spaced points on the unit circle |z| = 1.	topic::complex-analysis
+State the Cauchy–Riemann equations for f = u + iv with z = x + iy.	If f is holomorphic then uₓ = v_y and u_y = −vₓ (partial derivatives). Together with continuous partials, these imply f is holomorphic.	topic::complex-analysis
+Define what it means for a function to be analytic (holomorphic) on an open set.	f is holomorphic on an open set U if it is complex-differentiable at every point of U, i.e. the limit (f(z+h) − f(z))/h exists as h → 0 (h complex) for each z ∈ U.	topic::complex-analysis
+State Cauchy's integral theorem.	If f is holomorphic on a simply connected open set and γ is a closed contour in it, then ∮_γ f(z) dz = 0.	topic::complex-analysis
+State Cauchy's integral formula.	If f is holomorphic on and inside a positively oriented simple closed contour γ, and a is interior to γ, then f(a) = (1/(2πi)) ∮_γ f(z)/(z − a) dz.	topic::complex-analysis
+State the residue theorem.	If f is holomorphic inside and on a positively oriented simple closed contour γ except at isolated singularities zₖ, then ∮_γ f(z) dz = 2πi Σ Res(f, zₖ).	topic::complex-analysis
+How do you compute the residue at a simple pole z₀ of f?	Res(f, z₀) = lim(z→z₀) (z − z₀) f(z). For f = g/h with simple zero of h at z₀, this equals g(z₀)/h′(z₀).	topic::complex-analysis
+For z = x + iy, give the complex conjugate z̄ and the identity relating z, z̄, and |z|.	z̄ = x − iy. Then z·z̄ = x² + y² = |z|², so |z| = √(z z̄).	topic::complex-analysis
+Under the map w = e^z, what is the image of a horizontal line y = c (c constant) in the z-plane?	Writing z = x + ic, w = e^x e^{ic}, so as x ranges over ℝ, w traces the ray from the origin (excluding 0) at angle c: arg(w) = c, |w| = e^x > 0.	topic::complex-analysis
+What is a sample space?	The set of all possible outcomes of a random experiment, usually denoted Ω or S.	topic::probability-statistics
+State the three Kolmogorov axioms of probability.	1) P(A) ≥ 0 for any event A; 2) P(Ω) = 1; 3) for disjoint events, P(A ∪ B) = P(A) + P(B).	topic::probability-statistics
+Define the conditional probability P(A | B).	P(A | B) = P(A ∩ B) / P(B), provided P(B) > 0.	topic::probability-statistics
+State Bayes' theorem.	P(A | B) = P(B | A) · P(A) / P(B), where P(B) > 0.	topic::probability-statistics
+When are two events A and B independent?	When P(A ∩ B) = P(A) · P(B); equivalently P(A | B) = P(A).	topic::probability-statistics
+State the law of total probability for a partition B₁,...,Bₙ of the sample space.	P(A) = Σ P(A | Bᵢ) · P(Bᵢ) summed over i = 1 to n.	topic::probability-statistics
+State the linearity of expectation for random variables X and Y.	E[aX + bY] = a·E[X] + b·E[Y], which holds even if X and Y are not independent.	topic::probability-statistics
+Define the variance of a random variable X.	Var(X) = E[(X − μ)²] = E[X²] − (E[X])², where μ = E[X].	topic::probability-statistics
+What are the mean and variance of a Binomial(n, p) distribution?	Mean = np and variance = np(1 − p).	topic::probability-statistics
+State the 68-95-99.7 rule for a normal distribution.	About 68% of values lie within 1σ of μ, 95% within 2σ, and 99.7% within 3σ.	topic::probability-statistics
+What are the mean and variance of a Poisson(λ) distribution?	Both the mean and the variance equal λ.	topic::probability-statistics
+For a geometric distribution with success probability p (trials until first success), what is the expected number of trials?	E[X] = 1/p, and variance = (1 − p)/p².	topic::probability-statistics
+When rolling two fair dice, what is P(sum = 7)?	1/6, since 6 of the 36 equally likely outcomes sum to 7.	topic::probability-statistics
+What is the mean of a continuous Uniform(a, b) distribution?	(a + b)/2, and its variance is (b − a)²/12.	topic::probability-statistics
+State the fundamental counting (multiplication) principle.	If one task can be done in m ways and another in n ways, the two together can be done in m · n ways.	topic::discrete-combinatorics
+How many permutations (orderings) are there of n distinct objects?	n! = n · (n−1) · (n−2) · ... · 2 · 1.	topic::discrete-combinatorics
+Give the formula for combinations C(n, k).	C(n, k) = n! / (k! (n − k)!), the number of k-element subsets of an n-set.	topic::discrete-combinatorics
+State the binomial theorem.	(x + y)ⁿ = Σ from k=0 to n of C(n, k) · xⁿ⁻ᵏ · yᵏ.	topic::discrete-combinatorics
+State the pigeonhole principle.	If n items are placed into m boxes with n > m, then at least one box contains at least two items.	topic::discrete-combinatorics
+State the inclusion-exclusion principle for two sets.	|A ∪ B| = |A| + |B| − |A ∩ B|.	topic::discrete-combinatorics
+State the handshaking lemma (degree sum formula) for a graph.	The sum of all vertex degrees equals 2|E|, twice the number of edges.	topic::discrete-combinatorics
+How many edges does a tree with n vertices have?	Exactly n − 1 edges.	topic::discrete-combinatorics
+State Euler's formula for a connected planar graph.	V − E + F = 2, where V, E, F are the numbers of vertices, edges, and faces.	topic::discrete-combinatorics
+How many subsets does a set with n elements have?	2ⁿ, including the empty set and the set itself.	topic::discrete-combinatorics
+Describe the idea of floating-point round-off error.	Real numbers are stored with finite precision, so most values are rounded to the nearest representable number, introducing a relative error bounded by machine epsilon.	topic::numerical-analysis
+State the iteration formula for Newton's method.	x_{n+1} = x_n − f(x_n) / f'(x_n).	topic::numerical-analysis
+Describe the bisection method and its convergence.	On [a, b] with f(a)·f(b) < 0, repeatedly halve the interval keeping the sign change; the root is bracketed and error halves each step (linear convergence).	topic::numerical-analysis
+What is the fixed-point iteration for solving x = g(x)?	x_{n+1} = g(x_n); it converges near a fixed point x* if |g'(x*)| < 1.	topic::numerical-analysis
+State the trapezoidal rule for ∫ from a to b of f(x) dx (single interval) and its error order.	≈ (b − a)/2 · (f(a) + f(b)); the composite error is O(h²).	topic::numerical-analysis
+State Simpson's rule for ∫ from a to b of f(x) dx and its error order.	≈ (b − a)/6 · (f(a) + 4f((a+b)/2) + f(b)); the composite error is O(h⁴).	topic::numerical-analysis
+Give the linear interpolation estimate of f(x) between points (x₀, y₀) and (x₁, y₁).	f(x) ≈ y₀ + (y₁ − y₀)/(x₁ − x₀) · (x − x₀).	topic::numerical-analysis
+What does the condition number of a problem measure?	How sensitive the output is to small changes in the input; a large condition number means the problem is ill-conditioned.	topic::numerical-analysis
+Define the order of convergence p of a sequence converging to x*.	It is the value p for which |x_{n+1} − x*| ≈ C·|x_n − x*|ᵖ; p = 1 is linear, p = 2 is quadratic (e.g., Newton's method).	topic::numerical-analysis

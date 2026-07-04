@@ -2,9 +2,8 @@
 Copyright: Ankitects Pty Ltd and contributors
 License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-A simSchool-style classroom (kids at desks) plus a live chat with the class. The
-kids greet you at the start, react/ask about real gaps as you post to the board,
-and you can talk back to them — they answer or ask follow-ups.
+A simSchool-style classroom (kids at desks) plus a live chat feed. The kids greet
+you at the start, and react or ask about real gaps as you post to the board.
 -->
 <script lang="ts">
     import type { Session } from "$lib/teachback/state";

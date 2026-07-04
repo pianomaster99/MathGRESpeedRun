@@ -163,7 +163,7 @@ and the evaluator reacts. Nothing is polled in the background.
         }
         // Merge pending strokes into committed — but only persist a drawing when
         // the pen was actually used, so text-only posts keep hasDrawing = false
-        // (the agent relies on that to require the triangle drawing).
+        // (the agent uses that for the optional per-lesson "draw a diagram" nudge).
         if (pendingDirty && cctx && pctx && committed && pending) {
             cctx.globalCompositeOperation = "source-over";
             cctx.drawImage(pending, 0, 0);
@@ -276,6 +276,8 @@ and the evaluator reacts. Nothing is polled in the background.
             <div
                 class="textbox"
                 data-box={box.id}
+                role="group"
+                aria-label="Text box"
                 style={`left:${box.x * 100}%; top:${box.y * 100}%`}
                 onpointerdown={(e) => e.stopPropagation()}
             >

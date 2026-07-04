@@ -113,41 +113,17 @@ export async function generateFeedback(summary: LLMSummary): Promise<FeedbackRep
 
 const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, " ");
 
-/** Very small keyword-based check for whether key ideas appear on the board. */
-function missingConcepts(text: string): string[] {
-    const t = normalize(text);
-    const missing: string[] = [];
-    if (!/(a\^?2|a²|square|squared|\^2)/.test(t)) {
-        missing.push("squaring the legs");
-    }
-    if (!/(c\^?2|c²|a\^?2\s*\+\s*b\^?2|pythag)/.test(t)) {
-        missing.push("the formula a² + b² = c²");
-    }
-    if (!/(sqrt|square root|√|root)/.test(t)) {
-        missing.push("taking the square root at the end");
-    }
-    if (!/(hypotenuse|longest|opposite)/.test(t)) {
-        missing.push("which side is the hypotenuse");
-    }
-    return missing;
-}
-
-const REACT_QUESTIONS: Record<string, string> = {
-    "squaring the legs": "wait do we add them or square them first?? 😅",
-    "the formula a² + b² = c²": "ummm what's the actual formula again lol",
-    "taking the square root at the end": "do we HAVE to square root it or can i be lazy",
-    "which side is the hypotenuse": "is c the long slanty side or nah?",
-};
-
-function randomStudentId(): string {
-    const students = getLesson().students;
+function randomStudentId(summary: LLMSummary): string {
+    const students = summary.students?.length
+        ? summary.students
+        : getLesson(summary.lessonId).students;
     return students[Math.floor(Math.random() * students.length)].id;
 }
 
 /**
- * Offline agent: only speaks about gaps that are real given what's ALREADY on the
- * board (never preempts). Asks for a drawing only once a fair amount has been
- * explained but nothing has been drawn.
+ * Offline agent (lesson-agnostic): nudges with the lesson's own diagram hint if
+ * it applies, otherwise asks one still-unused example question for this lesson.
+ * It never fabricates topic-specific corrections.
  */
 function localAgentHeuristic(summary: LLMSummary): AgentResult {
     const text = (summary.boardText ?? "").trim();
@@ -156,19 +132,25 @@ function localAgentHeuristic(summary: LLMSummary): AgentResult {
             .filter((c) => c.role === "student")
             .map((c) => normalize(c.text)),
     );
-    const emit = (t: string) => ({ messages: [{ studentId: randomStudentId(), text: t, kind: "question" as const }], source: "offline" as const });
+    const emit = (t: string) => ({
+        messages: [{ studentId: randomStudentId(summary), text: t, kind: "question" as const }],
+        source: "offline" as const,
+    });
 
     if (text.length < 25) {
         return { messages: [], source: "offline" };
     }
-    if (!summary.hasDrawing && text.length > 60) {
-        const q = "can you draw the triangle?? i'm a visual learner 👀";
-        if (!said.has(normalize(q))) {
-            return emit(q);
+    const visual = summary.visual;
+    if (visual && !summary.hasDrawing) {
+        const bt = text.toLowerCase();
+        if (visual.triggerWords.some((w) => bt.includes(w.toLowerCase()))) {
+            const q = visual.request;
+            if (!said.has(normalize(q))) {
+                return emit(q);
+            }
         }
     }
-    for (const concept of missingConcepts(text)) {
-        const q = REACT_QUESTIONS[concept];
+    for (const q of summary.exampleQuestions ?? []) {
         if (q && !said.has(normalize(q))) {
             return emit(q);
         }
@@ -178,7 +160,6 @@ function localAgentHeuristic(summary: LLMSummary): AgentResult {
 
 function localFeedbackHeuristic(summary: LLMSummary): FeedbackReport {
     const text = summary.boardText ?? "";
-    const missing = missingConcepts(text);
 
     const revisitedSteps = summary.workedExampleVisits.map((v) => v.step);
     const usage = summary.workedExampleVisits.length === 0
@@ -194,13 +175,17 @@ function localFeedbackHeuristic(summary: LLMSummary): FeedbackReport {
                 ? "You wrote out your reasoning step by step."
                 : "You engaged with the problem and started writing out your reasoning.",
             summary.hasDrawing
-                ? "You drew the triangle to make it visual."
+                ? "You added a diagram to make it visual."
                 : "You worked through the problem on the board.",
         ],
-        knowledgeGaps: missing.length
-            ? missing.map((m) => `Your explanation didn't clearly cover ${m}.`)
-            : ["No major gaps detected by the offline checker — try the online evaluator for deeper feedback."],
-        suggestedReview: missing.length ? getLesson().suggestedReview : ["Keep practicing more right-triangle problems."],
+        // Offline can't verify correctness for arbitrary topics — be honest.
+        knowledgeGaps: [
+            "The offline checker can't verify this topic in detail — start the LLM"
+            + " proxy (with an OPENAI_API_KEY) for a line-by-line diagnosis.",
+        ],
+        suggestedReview: summary.suggestedReview?.length
+            ? summary.suggestedReview
+            : ["Review the worked example and try teaching it again."],
         workedExampleUsage: usage,
         source: "offline",
         encouragement:

@@ -48,11 +48,43 @@ export interface Student {
     greeting: string;
 }
 
+/**
+ * An optional per-lesson "draw a diagram" nudge. When present, the classroom
+ * agent may ask the teacher to sketch something once the board mentions any of
+ * the trigger words and nothing has been drawn yet. Kept as plain data so it
+ * works for any topic (not just geometry) without hard-coding the server.
+ */
+export interface VisualHint {
+    /** Case-insensitive substrings that mean "a diagram would help now". */
+    triggerWords: string[];
+    /** The casual student request to draw it (asked at most once). */
+    request: string;
+}
+
+/** GRE Math exam areas, used to group lessons on the home page. */
+export type ExamArea = "Calculus" | "Algebra" | "Additional Topics" | "Warm-up";
+
 /** One complete lesson definition. */
 export interface Lesson {
     id: string;
     topic: string;
     title: string;
+    /** Emoji shown on the topic card. */
+    icon?: string;
+    /** One-line description shown on the topic card. */
+    blurb?: string;
+    /** Short difficulty/level label, e.g. "Core" or "Advanced". */
+    level?: string;
+    /** Which GRE Math area this belongs to (for grouping the catalog). */
+    examArea?: ExamArea;
+    /**
+     * The topic-mastery slug this lesson feeds (a key of GRE_MATH_TOPICS in
+     * anki.gre_readiness, e.g. "linear-algebra"). Omitted for warm-ups that
+     * don't map to a graded exam topic.
+     */
+    masterySlug?: string;
+    /** Optional diagram nudge (see VisualHint). */
+    visual?: VisualHint;
     workedExample: WorkedExample;
     teachback: TeachbackProblem;
     /** Concepts the lesson is trying to build. */
@@ -119,6 +151,66 @@ export interface WorkedExampleVisit {
     at: number;
 }
 
+/** Per-topic mastery breakdown returned after recording a lesson (in-app). */
+export interface TopicMasteryStat {
+    slug: string;
+    topic: string;
+    examWeight: number;
+    /** Memory (FSRS recall) component, 0-1, or null if the topic has no cards. */
+    memory: number | null;
+    /** Teaching component from recent verified lessons, 0-1, or null. */
+    teaching: number | null;
+    /** Blended mastery, 0-1, or null if there's no signal at all. */
+    combined: number | null;
+    teachCount: number;
+    mastered: number;
+    total: number;
+}
+
+/** One of the three 0-1 scores (memory or performance) with its range. */
+export interface ScoreSnapshot {
+    value: number | null;
+    low: number | null;
+    high: number | null;
+    confidence: string;
+    abstained: boolean;
+    reason: string;
+}
+
+/** Projected readiness score on the real exam scale, with its range. */
+export interface ReadinessSnapshot {
+    scaled: number | null;
+    scaledLow: number | null;
+    scaledHigh: number | null;
+    confidence: string;
+    abstained: boolean;
+    reason: string;
+    accuracyValidated: boolean;
+    scaleMin: number;
+    scaleMax: number;
+}
+
+/** The three separate scores shown after a lesson (mirrors the dashboard). */
+export interface ExamScoresSnapshot {
+    memory: ScoreSnapshot;
+    performance: ScoreSnapshot;
+    readiness: ReadinessSnapshot;
+    coverage: number;
+    gradedReviews: number;
+    lessonsVerified: number;
+    weakest: string | null;
+    updatedAt: number;
+}
+
+/** Result of recording a finished lesson into the collection (in-app only). */
+export interface LessonStats {
+    recorded: boolean;
+    teachScore: number | null;
+    verified: boolean;
+    topic: TopicMasteryStat | null;
+    scores: ExamScoresSnapshot;
+}
+
 /** High level phase of the lesson. */
 export type LessonPhase = "study" | "teach" | "feedback";
 
@@ -135,6 +227,8 @@ export interface LessonSession {
     startedAt: number;
     feedback: FeedbackReport | null;
     generatingFeedback: boolean;
+    /** Topic-mastery stats recorded after finishing (null in dev/mobile or before finish). */
+    lessonStats: LessonStats | null;
 }
 
 /** Where an LLM result actually came from. */

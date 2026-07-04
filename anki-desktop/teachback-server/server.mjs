@@ -66,10 +66,17 @@ if (!OPENAI_API_KEY) {
 }
 
 // --- OpenAI helper ---------------------------------------------------------
-async function callOpenAI(messages, { vision = false } = {}) {
+// Uses native Structured Outputs (json_schema + strict) when a schema is given,
+// which guarantees the response matches our shape (no missing fields / bad
+// enums), and falls back to plain json_object otherwise. Low temperature keeps
+// the diagnostic judgments consistent while the persona text still varies.
+async function callOpenAI(messages, { vision = false, schema = null, temperature = 0.3 } = {}) {
     if (!OPENAI_API_KEY) {
         throw new Error("no-api-key");
     }
+    const response_format = schema
+        ? { type: "json_schema", json_schema: schema }
+        : { type: "json_object" };
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -79,8 +86,8 @@ async function callOpenAI(messages, { vision = false } = {}) {
         body: JSON.stringify({
             model: MODEL,
             messages,
-            temperature: vision ? 0.4 : 0.5,
-            response_format: { type: "json_object" },
+            temperature,
+            response_format,
         }),
     });
     if (!res.ok) {
@@ -92,16 +99,31 @@ async function callOpenAI(messages, { vision = false } = {}) {
     return JSON.parse(content);
 }
 
+// Build the user turn: instructions + clearly-delimited context sections, plus
+// the board drawing as an image when one exists (multimodal). Delimiters keep
+// the model from confusing our instructions with the board data it evaluates.
 function userContent(summary, instruction) {
-    // Build a multimodal message when the user has drawn on the board.
-    const textPart = {
-        type: "text",
-        text: `${instruction}\n\nLESSON CONTEXT (JSON):\n${
-            JSON.stringify({ ...summary, drawing: undefined }, null, 2)
-        }`,
+    const ctx = {
+        problem: summary.problem,
+        expectedAnswer: summary.expectedAnswer,
+        expectedSteps: summary.expectedSteps,
+        keyConcepts: summary.keyConcepts,
+        commonMisconceptions: summary.commonMisconceptions,
+        students: summary.students,
+        visual: summary.visual ?? null,
+        workedExampleVisits: summary.workedExampleVisits,
     };
-    // Send the board text (as text) and the freehand drawing (as an image)
-    // together in one multimodal message when a drawing exists.
+    const board = (summary.boardText || "").trim() || "(the board is blank)";
+    const convo = (summary.conversation || [])
+        .map((c) => `- ${c.who} (${c.role}/${c.kind}): ${c.text}`)
+        .join("\n") || "(no one has spoken yet)";
+    const text =
+        `${instruction}\n\n`
+        + `<lesson_reference>\n${JSON.stringify(ctx, null, 2)}\n</lesson_reference>\n\n`
+        + `<board_text>\n${board}\n</board_text>\n\n`
+        + `<has_drawing>${!!summary.hasDrawing}</has_drawing>\n\n`
+        + `<conversation_memory>\n${convo}\n</conversation_memory>`;
+    const textPart = { type: "text", text };
     const img = summary.drawing;
     if (summary.hasDrawing && typeof img === "string" && img.startsWith("data:image")) {
         return [textPart, { type: "image_url", image_url: { url: img } }];
@@ -110,105 +132,204 @@ function userContent(summary, instruction) {
 }
 
 // --- Mini classroom agent --------------------------------------------------
-const AGENT_SYSTEM = `You are the single mind behind a small class of casual, silly school kids. A
-teacher is teaching at the board. You are given: the problem statement, the
-current board TEXT, the freehand DRAWING as an image (when present),
-"hasDrawing" (whether a drawing exists), and the whole class conversation so far
-(this includes every message the kids have ALREADY said — that is your memory).
-Read the text and the drawing together.
+// Strict output schema: the model must fill an "analysis" object (hidden
+// chain-of-thought that the client ignores) BEFORE the "messages" it will speak.
+const AGENT_SCHEMA = {
+    name: "classroom_turn",
+    strict: true,
+    schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+            analysis: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                    newSinceLastTurn: {
+                        type: "string",
+                        description: "What is genuinely new since the kids last spoke, or 'nothing new'.",
+                    },
+                    solutionSteps: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Ordered math steps currently on the board.",
+                    },
+                    issuesFound: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Each missing/unclear/wrong step with the reason; empty if none.",
+                    },
+                },
+                required: ["newSinceLastTurn", "solutionSteps", "issuesFound"],
+            },
+            messages: {
+                type: "array",
+                description: "Zero or more student utterances for this turn (empty is normal).",
+                items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        studentId: { type: "string" },
+                        text: { type: "string", description: "ONE short, casual sentence in that kid's voice." },
+                        kind: { type: "string", enum: ["reaction", "question"] },
+                        type: {
+                            type: "string",
+                            enum: ["greeting_reply", "offtopic_reply", "gap", "reinforce", "followup", "diagram"],
+                        },
+                    },
+                    required: ["studentId", "text", "kind", "type"],
+                },
+            },
+        },
+        required: ["analysis", "messages"],
+    },
+};
 
-You are called on EVERY post the teacher makes, even if they just pressed Enter
-again without changing anything. So your FIRST job is to figure out what, if
-anything, is NEW — and to stay silent when nothing new has happened.
+const AGENT_SYSTEM = `# Role
+You are the single shared mind controlling a small class of casual, good-natured,
+slightly silly school kids in a LOW-STRESS "teach-back" tutor. A learner (the
+"teacher") is teaching one math problem at a board. Make the class feel like real,
+curious classmates: react warmly and ask short questions ONLY when the teacher's
+explanation genuinely needs it. This is NOT a test — never be harsh or nitpicky.
 
-Follow these steps in order:
+# Inputs (in the user message, inside XML tags)
+- <lesson_reference>: the PROBLEM, expectedAnswer, expectedSteps, keyConcepts,
+  commonMisconceptions, the student roster (id + voice), an optional "visual"
+  diagram hint, and worked-example visits. The teacher may use ANY valid method —
+  do NOT force the expected steps; only require that the logic is correct and complete.
+- <board_text>: everything currently written on the board.
+- A board DRAWING image is included when <has_drawing>true</has_drawing>. Read the
+  text and the drawing together.
+- <conversation_memory>: every message already said this lesson. This is your
+  MEMORY — never repeat or rephrase anything already there.
 
-STEP 1 — Break down the board into an ordered list of solution steps, PLUS any
-  non-math text the teacher wrote to the class: greetings, questions, or
-  OFF-TOPIC small talk (e.g. "how's the weather today?", "what did you have for
-  breakfast?"). They may use ANY valid approach; do not force a specific
-  solution, just check the logic flows.
+# You are called on EVERY post (even a repeated Enter)
+So first work out what, if anything, is NEW. Silence is normal and common.
 
-STEP 2 — Compare against the conversation (your memory). Determine what is NEW
-  since the kids last spoke: a new greeting/question/remark the TEACHER wrote, a
-  newly added solution step, a newly drawn figure, or a change to something. Any
-  new text the teacher wrote to the class counts as new (the kids' own earlier
-  greetings do NOT make the teacher's greeting redundant). If NOTHING is new (the
-  board is genuinely the same as when you last responded), return
-  {"messages": []} and say nothing.
+# Think first (fill the "analysis" field before deciding messages)
+1. newSinceLastTurn: what genuinely changed since the kids last spoke — a new
+   solution step, a new/changed figure, or a new remark/question the TEACHER wrote.
+   (The kids' own earlier greetings do NOT make the teacher's greeting redundant.)
+2. solutionSteps: the ordered math steps currently on the board.
+3. issuesFound: any step that is MISSING, UNCLEAR, or WRONG, each with the reason.
+   Judge ONLY what is already on the board; never anticipate steps not yet reached.
 
-STEP 3 — Decide what the kids say, but DO NOT force a response. Only speak when
-  there is a real reason (the cases below). If the new content doesn't call for a
-  reply — e.g. a correct step with nothing notable, or a neutral statement — then
-  return {"messages": []} and stay silent. Silence is normal and common. You may
-  return MULTIPLE messages when several distinct things each warrant one.
-  (a) CONVERSATION / SMALL TALK: if the TEACHER directly asks the class a question
-      (e.g. "how are you guys doing?") answer it — a direct question always needs
-      a reply. A greeting or off-topic small talk (weather, breakfast, weekend)
-      usually gets a short, casual, FUNNY reply in character — but don't force one
-      for every little thing. Don't force it back to math. (kind = "reaction")
-  (b) GAP: for each NEW step that is MISSING, UNCLEAR, or WRONG, a kid asks a
-      casual question targeting that specific inconsistency (different kids for
-      different gaps).
-      HARD RULE (this problem): drawing the triangle is a REQUIRED step. If the
-      teacher has used the Pythagorean formula but hasDrawing is false, a kid
-      asks them to draw the triangle — but ONLY once the formula has been used,
-      and never again once a drawing exists.
-  (c) REINFORCE: if the teacher just did a crucial CORRECT step, one kid asks a
-      short question reiterating it, e.g. "oh so this only works for right
-      triangles right?".
-  (d) FOLLOW-UP / CONFIRM: if the NEW content answers or addresses a question a
-      kid asked earlier in the conversation, that same kid confirms it happily
-      ("ohh okok that makes sense now, thanks! 🙌") or asks ONE short follow-up
-      question about it.
+# Then choose 0+ messages (classify each with "type")
+- "greeting_reply": teacher greeted or DIRECTLY asked the class something → always
+  answer a direct question; a greeting gets one short, funny, in-character reply.
+- "offtopic_reply": teacher wrote something unrelated to math (weather, breakfast)
+  → one short funny remark; never treat it as a solution step.
+- "gap": a NEW step is missing/unclear/wrong → ONE kid asks a casual question
+  targeting that specific issue (different kids for different issues).
+- "reinforce": when the teacher CORRECTLY states or uses a KEY idea for the first
+  time — the core formula/theorem, a crucial insight, or the correct final answer —
+  ONE kid SHOULD ask a short question that restates it to lock it in (e.g. "oh so
+  this only works when there's a right angle, right?"). This is a WANTED teaching
+  beat, not filler: do it once per key idea (not for routine arithmetic, never twice).
+- "followup": the new content answers a question a kid asked earlier → that SAME
+  kid confirms happily ("ohh that makes sense now, thanks! 🙌") or asks one short
+  follow-up.
+- "diagram" (kind = question): ONLY if a "visual" hint applies and no drawing
+  exists yet → one kid asks the teacher to draw it, exactly once.
 
-STRICT RULES:
-- DO NOT force a response. If an input doesn't genuinely need one, return
-  {"messages": []}. It is completely fine (and common) for the class to say
-  nothing on a given post.
-- Off-topic small talk is NOT a solution step — never treat it as a wrong/missing
-  step; just answer it with a funny reaction.
-- Judge ONLY what is already on the board. NEVER anticipate steps not yet reached
-  (don't ask about the square root before c² is computed).
-- Never repeat or rephrase something already said in the conversation.
-- Do not respond to a step you have already responded to. If the teacher re-posts
-  the same board, say nothing.
-- Each message is ONE short, casual, sometimes silly sentence in the chosen
-  kid's voice (voices provided). Pick a fitting studentId per message.
+# Hard rules
+- DO NOT force a reply for routine or unremarkable content, and return
+  "messages": [] whenever nothing is new. But DO react to greetings and direct
+  questions, to real gaps, and to the FIRST correct use of a key idea (reinforce).
+  Empty is a perfectly good answer when none of those apply.
+- NEVER invent an error — if the board is correct, do not fabricate a gap.
+- NEVER repeat or rephrase anything already in <conversation_memory>.
+- One issue per kid; each message is ONE short casual sentence in that kid's voice.
+- kind = "reaction" for greeting_reply/offtopic_reply/reinforce/followup;
+  kind = "question" for gap/diagram.
+- Pick a studentId that exists in the roster.
 
-Return ONLY JSON:
-{"messages": [{"studentId": string, "text": string, "kind": "reaction" | "question"}]}
-Use "reaction" for conversational replies, "question" for gap/reinforcing
-questions. Return {"messages": []} if nothing new happened.`;
+# Examples
+Input: <board_text> "hey team, how's everyone doing today?" </board_text>, no prior kid replies to it.
+Output: {"analysis":{"newSinceLastTurn":"teacher greeted and asked the class a direct question","solutionSteps":[],"issuesFound":[]},"messages":[{"studentId":"riley","text":"we're good teach!! ready when you are 😎","kind":"reaction","type":"greeting_reply"}]}
 
-const FEEDBACK_SYSTEM = `You are the evaluator generating a post-lesson feedback report for a student who
-just taught a lesson to simulated students. Your ONLY job is to identify what
-they got WRONG or MISSED. Do NOT give any numeric ratings, scores, grades, or
-percentages of any kind. Your tone is warm and encouraging, but honest.
+Input: <board_text> unchanged from the previous turn </board_text>.
+Output: {"analysis":{"newSinceLastTurn":"nothing new","solutionSteps":["(same as before)"],"issuesFound":[]},"messages":[]}
 
-DIAGNOSE RIGOROUSLY:
-1. Solve the problem correctly yourself first (the expected answer is provided).
-2. Compare the student's board line-by-line to the expected steps and to the
-   list of common misconceptions.
-3. In knowledgeGaps, list every real ERROR, missing step, and misconception,
-   named SPECIFICALLY (quote or paraphrase the wrong line and say what the
-   correct version is). Vague items like "could clarify more" are NOT acceptable
-   when there is an actual mistake — call the mistake out plainly but kindly.
-   If the explanation was fully correct and complete, say so honestly.
+Input: eigenvalue lesson, <board_text> "det = 4*3 + 1*2 = 14" </board_text> (should be ad − bc = 10).
+Output: {"analysis":{"newSinceLastTurn":"teacher computed the determinant","solutionSteps":["det via 4*3+1*2"],"issuesFound":["determinant used ad+bc instead of ad−bc; 14 should be 10"]},"messages":[{"studentId":"maya","text":"wait isn't the determinant ad MINUS bc?? so like 10, not 14 🤔","kind":"question","type":"gap"}]}
 
-Treat any use of the worked example as NORMAL learning, never a failure — but if
-they returned to the same part repeatedly, note that concept may deserve review.
-Never label incorrect work as correct, and never invent a score.
+Return ONLY JSON matching the provided schema.`;
 
-Respond ONLY with JSON of the form:
-{
-  "strengths": string[],
-  "knowledgeGaps": string[],
-  "suggestedReview": string[],
-  "workedExampleUsage": string,
-  "encouragement": string
-}
-Keep each list to 2-4 concise, concrete bullet points.`;
+const FEEDBACK_SCHEMA = {
+    name: "feedback_report",
+    strict: true,
+    schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+            analysis: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                    correctApproach: {
+                        type: "string",
+                        description: "The correct solution/steps, worked out by you first.",
+                    },
+                    comparison: {
+                        type: "string",
+                        description: "How the teacher's board compares, line by line.",
+                    },
+                },
+                required: ["correctApproach", "comparison"],
+            },
+            strengths: { type: "array", items: { type: "string" } },
+            knowledgeGaps: { type: "array", items: { type: "string" } },
+            suggestedReview: { type: "array", items: { type: "string" } },
+            workedExampleUsage: { type: "string" },
+            encouragement: { type: "string" },
+        },
+        required: [
+            "analysis",
+            "strengths",
+            "knowledgeGaps",
+            "suggestedReview",
+            "workedExampleUsage",
+            "encouragement",
+        ],
+    },
+};
+
+const FEEDBACK_SYSTEM = `# Role
+You are the evaluator writing a short, supportive post-lesson report for someone
+who just taught a math problem to simulated students in a LOW-STRESS tutor. Warm
+but honest — help them improve without making them feel judged.
+
+# Inputs (in the user message, inside XML tags)
+- <lesson_reference>: the PROBLEM, expectedAnswer, expectedSteps, keyConcepts,
+  commonMisconceptions, and worked-example visits.
+- <board_text> (+ a drawing image when present): what the teacher actually taught.
+- <conversation_memory>: the questions the kids asked during the lesson.
+
+# Method — fill "analysis" FIRST
+1. correctApproach: solve the problem correctly yourself (expectedAnswer is given);
+   note the key correct steps. The teacher may use any valid method.
+2. comparison: compare the board line-by-line to your solution, the expectedSteps,
+   and the commonMisconceptions.
+
+# Then write the report
+- strengths: 2-4 SPECIFIC things they explained correctly (quote/paraphrase their
+  actual work).
+- knowledgeGaps: every real ERROR, missing step, or misconception, named
+  SPECIFICALLY — quote the wrong line and give the correct version. Vague items
+  like "could clarify more" are NOT acceptable when there is a real mistake. If the
+  explanation was fully correct and complete, say so honestly and keep this short.
+- suggestedReview: 2-4 concepts to revisit next.
+- workedExampleUsage: comment on their worked-example visits. Treat ANY use as
+  NORMAL learning, never a failure; if they returned to the same part repeatedly,
+  gently note that concept may deserve review.
+- encouragement: one warm closing sentence.
+
+# Hard rules
+- Do NOT output any numeric score, grade, rating, or percentage of any kind.
+- Never label incorrect work as correct; never invent facts.
+
+Return ONLY JSON matching the provided schema.`;
 
 async function handleTurn(summary) {
     try {
@@ -218,10 +339,13 @@ async function handleTurn(summary) {
                 role: "user",
                 content: userContent(
                     summary,
-                    "The teacher just posted to the board. Decide what the kids say this turn (respond to any greeting/question, ask about a missing/unclear/wrong step, require the triangle drawing, and/or reinforce a crucial correct step). Judge only what's already there.",
+                    "The teacher just posted to the board. Decide what the kids say this turn (respond to any greeting/question, ask about a missing/unclear/wrong step, ask for a diagram only if the lesson's visual hint applies, and/or reinforce a crucial correct step). Judge only what's already there.",
                 ),
             },
-        ], { vision: summary.hasDrawing });
+        ], { vision: summary.hasDrawing, schema: AGENT_SCHEMA, temperature: 0.3 });
+        if (result.analysis) {
+            console.log("[teachback] agent analysis:", JSON.stringify(result.analysis));
+        }
         let messages = Array.isArray(result.messages) ? result.messages : [];
         messages = messages.filter((m) => m && typeof m.text === "string" && m.text.trim());
         const boardText = (summary.boardText || "").trim();
@@ -231,37 +355,39 @@ async function handleTurn(summary) {
             messages = messages.filter((m) => m.kind !== "question");
         }
 
-        // --- Deterministic drawing rule -----------------------------------
-        // The triangle drawing is a REQUIRED step. Enforce it regardless of the
-        // model's mood: a "draw the triangle" request is valid ONLY once the
-        // formula has been used and no drawing exists yet, and is asked ONCE.
-        const formulaUsed = /(\^\s*2|²|squared|pythag|sqrt|√|c\s*=|=\s*c\b)/i.test(boardText);
-        const isDrawRequest = (t) => /draw|sketch/i.test(t) && /triangle/i.test(t);
+        // --- Deterministic diagram rule (lesson-driven) -------------------
+        // Only lessons that ship a "visual" hint can trigger a drawing request.
+        // It fires once the board mentions any trigger word, no drawing exists,
+        // and it hasn't been asked yet — and it's asked exactly once.
+        const visual = summary.visual;
+        const isDrawRequest = (t) => /\b(draw|sketch|diagram|graph|plot|picture)\b/i.test(t);
         const alreadyAskedDraw = (summary.conversation || []).some(
             (c) => c.role === "student" && isDrawRequest(c.text),
         );
-        // Keep a draw request only if valid AND not already asked — the triangle
-        // is requested exactly once (dropping the model's rephrased repeats).
-        messages = messages.filter(
-            (m) => !isDrawRequest(m.text) || (formulaUsed && !summary.hasDrawing && !alreadyAskedDraw),
-        );
-        // Inject the required draw request if it's warranted and not yet asked.
-        if (
-            formulaUsed
-            && !summary.hasDrawing
-            && !alreadyAskedDraw
-            && !messages.some((m) => isDrawRequest(m.text))
-        ) {
-            messages.push({
-                studentId: randomStudent(summary),
-                text: "wait, can you draw the triangle so we can actually see it? 👀",
-                kind: "question",
-            });
+        if (visual && Array.isArray(visual.triggerWords)) {
+            const bt = boardText.toLowerCase();
+            const triggered = visual.triggerWords.some((w) => bt.includes(String(w).toLowerCase()));
+            const canAsk = triggered && !summary.hasDrawing && !alreadyAskedDraw;
+            // Keep a model draw request only if it's currently warranted.
+            messages = messages.filter((m) => !isDrawRequest(m.text) || canAsk);
+            // Inject the diagram request if warranted and not already present.
+            if (canAsk && !messages.some((m) => isDrawRequest(m.text))) {
+                messages.push({
+                    studentId: randomStudent(summary),
+                    text: visual.request || "wait, can you draw that so we can see it? 👀",
+                    kind: "question",
+                });
+            }
+        } else {
+            // No visual hint for this lesson: never ask for a drawing.
+            messages = messages.filter((m) => !isDrawRequest(m.text));
         }
         // Final guard: never repeat (even reworded) a question/remark already said.
         const priorTexts = (summary.conversation || []).map((c) => c.text);
         messages = dropRepeats(messages, priorTexts);
-        return { messages, source: "openai" };
+        // Return only the client's contract (drop the internal "type"/analysis).
+        const clean = messages.map((m) => ({ studentId: m.studentId, text: m.text, kind: m.kind }));
+        return { messages: clean, source: "openai" };
     } catch (err) {
         console.warn("[teachback] agent OpenAI call failed, using heuristic:", err.message);
         return localTurn(summary);
@@ -279,11 +405,16 @@ async function handleFeedback(summary) {
                     "Generate the final feedback report for this teaching session.",
                 ),
             },
-        ], { vision: summary.hasDrawing });
+        ], { vision: summary.hasDrawing, schema: FEEDBACK_SCHEMA, temperature: 0.2 });
         if (!Array.isArray(result.knowledgeGaps)) {
             return localFeedback(summary);
         }
-        return { ...result, source: "openai" };
+        if (result.analysis) {
+            console.log("[teachback] feedback analysis:", JSON.stringify(result.analysis).slice(0, 300));
+        }
+        // Strip the internal reasoning; return only the client's report shape.
+        const { analysis, ...report } = result;
+        return { ...report, source: "openai" };
     } catch (err) {
         console.warn("[teachback] feedback OpenAI call failed, using heuristic:", err.message);
         return localFeedback(summary);
@@ -336,16 +467,6 @@ function dropRepeats(messages, priorTexts) {
     return out;
 }
 
-function missingConcepts(text) {
-    const t = normalize(text);
-    const missing = [];
-    if (!/(a\^?2|a²|square|squared|\^2)/.test(t)) missing.push("squaring the legs");
-    if (!/(c\^?2|c²|a\^?2\s*\+\s*b\^?2|pythag)/.test(t)) missing.push("the formula a² + b² = c²");
-    if (!/(sqrt|square root|√|root)/.test(t)) missing.push("taking the square root at the end");
-    if (!/(hypotenuse|longest|opposite)/.test(t)) missing.push("which side is the hypotenuse");
-    return missing;
-}
-
 function studentSaid(summary) {
     return new Set(
         (summary.conversation || [])
@@ -359,7 +480,8 @@ function randomStudent(summary) {
     return students[Math.floor(Math.random() * students.length)].id;
 }
 
-// Only speaks about CURRENT gaps; never preempts steps not yet reached.
+// Lesson-agnostic offline fallback: nudge with the lesson's own diagram hint or
+// one of its example questions. It never fabricates topic-specific corrections.
 function localTurn(summary) {
     const text = (summary.boardText ?? "").trim();
     const said = studentSaid(summary);
@@ -368,18 +490,17 @@ function localTurn(summary) {
         source: "offline",
     });
     if (text.length < 25) return { messages: [], source: "offline" };
-    if (!summary.hasDrawing && text.length > 60) {
-        const q = "can you draw the triangle?? i'm a visual learner 👀";
-        if (!said.has(normalize(q))) return one(q);
+    // Diagram nudge, only if this lesson ships a visual hint and it's warranted.
+    const visual = summary.visual;
+    if (visual && Array.isArray(visual.triggerWords) && !summary.hasDrawing) {
+        const bt = text.toLowerCase();
+        if (visual.triggerWords.some((w) => bt.includes(String(w).toLowerCase()))) {
+            const q = visual.request || "can you draw that so we can see it? 👀";
+            if (!said.has(normalize(q))) return one(q);
+        }
     }
-    const map = {
-        "squaring the legs": "wait do we add them or square them first?? 😅",
-        "the formula a² + b² = c²": "ummm what's the actual formula again lol",
-        "taking the square root at the end": "do we HAVE to square root it or can i be lazy",
-        "which side is the hypotenuse": "is c the long slanty side or nah?",
-    };
-    for (const concept of missingConcepts(text)) {
-        const q = map[concept];
+    // Otherwise ask one still-unused example question for this lesson.
+    for (const q of summary.exampleQuestions || []) {
         if (q && !said.has(normalize(q))) return one(q);
     }
     return { messages: [], source: "offline" };
@@ -387,7 +508,6 @@ function localTurn(summary) {
 
 function localFeedback(summary) {
     const text = summary.boardText ?? "";
-    const missing = missingConcepts(text);
     const visits = summary.workedExampleVisits || [];
     const revisited = visits.map((v) => v.step);
     const usage = visits.length === 0
@@ -400,19 +520,18 @@ function localFeedback(summary) {
                 ? "You wrote out your reasoning step by step."
                 : "You engaged with the problem and started explaining your steps.",
             summary.hasDrawing
-                ? "You drew the triangle to make it visual."
+                ? "You added a diagram to make it visual."
                 : "You worked through the problem on the board.",
         ],
-        knowledgeGaps: missing.length
-            ? missing.map((m) => `Your explanation didn't clearly cover ${m}.`)
-            : ["No major gaps detected by the offline checker."],
-        suggestedReview: missing.length
-            ? [
-                "When the Pythagorean theorem applies (right triangles only)",
-                "Squaring numbers and taking square roots",
-                "Identifying the hypotenuse vs the legs",
-            ]
-            : ["Keep practicing more right-triangle problems."],
+        // Offline can't verify correctness for arbitrary topics, so it says so
+        // honestly rather than inventing topic-specific gaps.
+        knowledgeGaps: [
+            "The offline checker can't verify this topic in detail — start the LLM"
+            + " proxy (with an OPENAI_API_KEY) for a line-by-line diagnosis.",
+        ],
+        suggestedReview: (summary.suggestedReview && summary.suggestedReview.length)
+            ? summary.suggestedReview
+            : ["Review the worked example and try teaching it again."],
         workedExampleUsage: usage,
         source: "offline",
         encouragement: OPENAI_API_KEY
