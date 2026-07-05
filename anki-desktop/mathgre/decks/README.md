@@ -4,6 +4,11 @@
 Test, tagged by topic (`topic::calculus`, `topic::linear-algebra`, …) so they
 feed the `TopicMastery` RPC and the readiness dashboard.
 
+Math is written in **MathJax LaTeX** (`\( … \)` / `\[ … \]`, header `#html:true`)
+so cards render as typeset math in Anki — not plain text. All 606 LaTeX snippets
+were validated as renderable (via KaTeX) and the topic tags are byte-for-byte
+unchanged from the original, so the math meaning is preserved.
+
 Coverage (matches the ETS outline weighting — Calculus is the largest):
 
 | Topic | Cards |

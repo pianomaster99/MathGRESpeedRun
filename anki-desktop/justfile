@@ -34,6 +34,10 @@ wheels:
 check:
     {{ ninja }} pylib qt check
 
+# Benchmark the GRE Math engine on a large deck (default 50,000 cards); prints p50/p95/worst
+bench cards='50000':
+    PYTHONPATH="$PWD/out/pylib:$PWD/pylib" ./out/pyenv/bin/python mathgre/eval/bench.py {{ cards }}
+
 # Run all tests (Rust, Python, TypeScript). Pass --coverage to enforce coverage, and --html to include HTML reports.
 [arg("coverage", long="coverage", value="--coverage")]
 [arg("html", long="html", value="--html")]

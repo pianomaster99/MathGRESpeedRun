@@ -68,6 +68,30 @@ Wednesday and Friday requirement. ✅ done · 🟡 partial (needs local run/reco
 - 🟡 **Ship desktop installer + phone build that run with AI off.** AI-off works;
   packaging/recording is local; native phone build is the open item above.
 
+## Sunday (final) status
+- ✅ **One-command benchmark (7h/10).** `just bench` (`mathgre/eval/bench.py`) loads a
+  50k-card deck and prints p50/p95/worst for the mastery RPC, three-score compute, and
+  search. Measured: 5k → RPC p95 ~67ms; 50k → RPC p95 ~1.35s (just over the 1s dashboard
+  target — reported honestly, not hidden).
+- ✅ **Calibration harness (Step 1).** `mathgre/eval/calibrate.py` (Brier, log loss,
+  reliability curve) with a `--selftest` that proves it (calibrated Brier 0.166 vs
+  overconfident 0.251). 🟡 A *real* calibrated number needs longitudinal reviews we don't
+  have — stated plainly (the rubric rewards this over a fake number).
+- ✅ **Math rendering.** Deck converted to MathJax LaTeX (`\( … \)`) so cards typeset in
+  Anki — `mathgre/decks/mathgre_mathjax.tsv`; KaTeX bundled for Teach-Back (no CDN).
+- ✅ **Model descriptions.** One page each (memory/performance/readiness) with give-up
+  rules in `mathgre/MODELS.md`.
+- ✅ **AI-off scoring.** All three scores are pure math; verified by tests.
+- 🟡 **Performance held-out / paraphrase test (7d, Step 2).** Design + instrumentation in
+  `MODELS.md`; the gap number needs a real learner.
+- 🟡 **Score mapping (Step 3).** Written down with a range (`MODELS.md`), flagged
+  "not validated."
+- ⛔ **Working mobile sync + three-score model ON mobile.** Blocked: AnkiWeb rejects this
+  fork's upload (`missing original size` — client/server version mismatch) and there's no
+  bundled sync server; the native companion carrying our Rust RPC is unbuilt.
+- ⛔ **Signed desktop installer + phone build; crash test; ablation study with real
+  learners.** Infra/data-dependent; not completed here.
+
 ## The honest headline
 Everything that is a **code + engine + AI-evaluation** deliverable for Wed/Fri is done
 and tested here. The genuine gap is the **native phone companion that shares the Rust
